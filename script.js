@@ -10,85 +10,136 @@
 // --------------------------------------------------
 
 // First, we create a variable for the current scene being displayed
-let currentScene = "backyard";
+let currentScene = "bathroom";
 
 // Then, we create an object that stores the data for each scene,
 const scenes = {
-  // See "backyard" for the first example
-  backyard: {
-    title: "Location: Backyard",
-    character: "Interviewee:Grandma",
-    text: "Text: well what I remember happening is that Darcie went inside to play with her pretend kitchen, I heard her neighbor mention he was really hungry, and the dog ran around really quickly",
-    // you can choose how many choices to include
-    // each choice can have text, an action, and/or nextScene
+  bathroom: {
+    title: "FIND YOUR TOOTHBRUSH",
+    text: "You just ate a bunch of Oreos and noticed a black spot on your tooth that looks like a cavity. Your dentist appointment is in 25 minutes, and you can't find your toothbrush! You check the cabinet under the sink and find toothpaste, but no toothbrush.",
+    image: { alt: "Bathroom image" },
+    onEnter: function () {
+      if (!inventory.includes("toothpaste")) {
+        pickUpItem("toothpaste");
+      }
+    },
     choices: [
       {
-        text: "Chase after the dog (-10 HP)",
+        text: "Go to the kitchen",
+        timeCost: 2,
+        nextScene: "kitchen"
+      },
+      {
+        text: "Go to the living room",
+        timeCost: 3,
+        nextScene: "livingroom"
+      }
+    ]
+  },
+
+  kitchen: {
+    title: "Kitchen",
+    text: "You ask your mom if she's seen your toothbrush. She says she cleaned the bathroom earlier and put some things away, but doesn't remember where.",
+    image: { alt: "Kitchen image" },
+    onEnter: function () {
+      messageDisplay.textContent = "Clue: Mom cleaned the bathroom.";
+    },
+    choices: [
+      {
+        text: "Go to the living room",
+        timeCost: 2,
+        nextScene: "livingroom"
+      },
+      {
+        text: "Go to Mom's bedroom",
+        timeCost: 4,
+        requiresItem: "bedroom key",
+        nextScene: "momsroom"
+      }
+    ]
+  },
+
+  livingroom: {
+    title: "Living Room",
+    text: "You look through a box of random stuff your mom moved while cleaning. You find some bathroom items and a small key that might unlock Mom's bedroom. There is no toothbrush, so you wonder where else she could've put it.",
+    image: { alt: "Living room image" },
+    onEnter: function () {
+      messageDisplay.textContent = "Clue: Mom moved bathroom stuff.";
+    },
+    choices: [
+      {
+        text: "Search the box for the key",
+        timeCost: 1,
         action: function () {
-          updateHealth(-10);
+          pickUpItem("bedroom key");
+          messageDisplay.textContent = "You found a key to Mom's bedroom.";
+        }
+      },
+      {
+        text: "Try Mom's bedroom",
+        timeCost: 2,
+        requiresItem: "bedroom key",
+        nextScene: "momsroom"
+      },
+      {
+        text: "Return to the bathroom",
+        timeCost: 1,
+        nextScene: "bathroom"
+      }
+    ]
+  },
+
+  momsroom: {
+    title: "Mom's room",
+    text: "You look through your mom's makeup stash and see a bunch of brushes. Then you spot your toothbrush mixed in with them! Your mom must've mistaken it for one of her brushes while cleaning.",
+    image: { alt: "Makeup stash image" },
+    choices: [
+      {
+        text: "Take the toothbrush",
+        timeCost: 1,
+        action: function () {
+          pickUpItem("toothbrush");
         },
-        nextScene: "entrance"
+        nextScene: "ending"
       },
       {
-        text: "Ask about the neighbor",
-        nextScene: "hallway"
-      },
-      {
-          text: "Pick up the brass key",
-          action: function () {
-            pickUpItem("brass key");
-          },
-          nextScene: "hallway"
+        text: "Leave for the dentist",
+        nextScene: "ending"
       }
     ]
   },
 
-  entrance: {
-    title: "Location: Entrance",
-    character: "Interviewee:Neighbor",
-    text: "well what I remember...",
+  ending: {
+    title: "The Dentist",
+    text: "",
+    image: { src: "toothbrush.jpg", alt: "Toothbrush image" },
+    onEnter: function () {
+      if (inventory.includes("toothbrush") && inventory.includes("toothpaste")) {
+        sceneText.textContent = "Good ending: You brush your teeth and the black Oreo stain comes off. You make it to the dentist and find out your teeth are fine!";
+      } else {
+        sceneText.textContent = "Bad ending: You leave without brushing and worry about the black spot, and the amateur dentist actually believes you have a cavity. You leave the dentist missing a tooth and with a bill for $200. Sorry...!";
+      }
+    },
     choices: [
       {
-        text: "Ask about the dog",
-        nextScene: "backyard"
-      },
-         {
-        text: "Ask about the neighbor",
-        nextScene: "hallway"
-      }
-    ]
-  },
-
-  hallway: {
-    title: "The Hallway",
-    text: "The hallway is dark and silent.",
-    choices: [
-      {
-        text: "backyard",
-        nextScene: "lockedDoor"
-      }
-    ]
-  },
-
-   lockedDoor: {
-    title: "The Locked Door",
-    text: "The door handle doesn't move.",
-    choices: [
-      {
-        text: "Try to open it",
-        action: unlockDoor
+        text: "Play again",
+        action: function () {
+          inventory = [];
+          inventoryDisplay.textContent = "";
+          messageDisplay.textContent = "";
+          time = 25;
+          updateTime(0);
+          updateScene("bathroom");
+        }
       },
       {
-        text: "Go back",
-        nextScene: "backyard"
+        text: "End game",
+        action: function () {
+          choicesContainer.innerHTML = "";
+          messageDisplay.textContent = "Game ended.";
+        }
       }
     ]
-  },
-
-   solution: {
-    title: "The solution",
-    text: "You solved the mystery!",
-    
   }
 };
 
@@ -109,6 +160,7 @@ const scenes = {
 // and make the code harder to read
 const sceneTitle = document.getElementById("scene-title");
 const sceneText = document.getElementById("scene-text");
+const sceneImage = document.getElementById("scene-image");
 const choicesContainer = document.getElementById("choices-container");
 const characterName = document.getElementById("character-name");
 
@@ -125,20 +177,41 @@ function updateScene(sceneName) {
   // the appropriate text from the scene object
   sceneTitle.textContent = scene.title;
   sceneText.textContent = scene.text;
-  characterName.textContent = scene.character;
+  characterName.textContent = scene.character || "";
+  messageDisplay.textContent = "";
+  sceneImage.hidden = !scene.image.src;
+  if (scene.image.src) {
+    sceneImage.src = scene.image.src;
+  }
+  sceneImage.alt = scene.image.alt;
 
   // Clear the old buttons before creating new ones
   choicesContainer.innerHTML = "";
+
+  if (scene.onEnter) {
+    scene.onEnter();
+  }
 
   // Loop through each choice in the scene, connecting an action and nextScene if included
   scene.choices.forEach(function (choice) {
     const button = document.createElement("button");
 
-    button.textContent = choice.text;
+    button.textContent = choice.timeCost
+      ? `${choice.text} (-${choice.timeCost} min)`
+      : choice.text;
 
     button.addEventListener("click", function () {
+      if (choice.requiresItem && !inventory.includes(choice.requiresItem)) {
+        messageDisplay.textContent = "The door is locked. Find the key in the living room first.";
+        return;
+      }
+
       if (choice.action) {
         choice.action();
+      }
+
+      if (choice.timeCost) {
+        updateTime(-choice.timeCost);
       }
 
       if (choice.nextScene) {
@@ -150,34 +223,24 @@ function updateScene(sceneName) {
   });
 }
 
-// This updates the screen with the current scene
-updateScene(currentScene);
-
-
 // --------------------------------------------------
-// HEALTH
-// Read through the comments below to see what this section does
-//
-// TO CUSTOMIZE THIS SECTION
-// Either customize the name from health to steps, stress, etc...
-// OR
-// create a copy of each step for each additional state you want to track throughout the game
+// TIME
 // --------------------------------------------------
 
-// Create a variable for health
-let health = 100;
+// Create a variable for the time remaining
+let time = 25;
 
-// Display current health
-const healthDisplay = document.getElementById("health-display");
+// Display time remaining
+const timeDisplay = document.getElementById("time-display");
 
-// Create a function to update health 
-function updateHealth(amount) {
-  health += amount;
-  healthDisplay.textContent = health;
+// Create a function to update time
+function updateTime(amount) {
+  time = Math.max(0, time + amount);
+  timeDisplay.textContent = time + " minutes";
 }
 
-// This refreshes the health display
-updateHealth(0);
+// This refreshes the time display
+updateTime(0);
 
 // --------------------------------------------------
 // INVENTORY
@@ -197,22 +260,11 @@ const messageDisplay = document.getElementById("message-display");
 function pickUpItem(itemName) {
     // Add itemName to the inventory array
     // Show the updated inventory on the page
-  inventory.push(itemName);
+  if (!inventory.includes(itemName)) {
+    inventory.push(itemName);
+  }
   inventoryDisplay.textContent = inventory.join(", ");
 }
 
-// --------------------------------------------------
-// CONDITIONAL 
-// Depending on how you want to implement the conditional logic, you may 
-// simply adjust the names below or you may need to expand upon this section
-// --------------------------------------------------
-
-// Create a function that checks if the inventory contains one item and if so shows the win condition scene.
-function unlockDoor() {
-  if (inventory.includes("brass key")) {
-    updateScene("solution");
-  } else {
-    messageDisplay.textContent = "The door is locked.";
-  }
-}
-
+// This updates the screen with the current scene
+updateScene(currentScene);
